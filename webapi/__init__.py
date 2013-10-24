@@ -7,17 +7,25 @@ class BaseHandler(tornado.web.RequestHandler):
             self.write_error(200, exc_info=(exc.__class__, exc, None))
             return
 
-        if isinstance(result, object):
-            result = result.as_dict()
-
-        if isinstance(result, dict):
-            if 'result' not in result:
-                result['result'] = 1
-
         if isinstance(result, bool):
             result = {
                 'result': 1 if result else 0
             }
+        elif isinstance(result, map) or isinstance(result, list) or isinstance(result, filter):
+            result = {
+                'data': list(
+                    map(lambda o: o.as_dict() if hasattr(o, 'as_dict') else o, result)
+                )
+            }
+        elif hasattr(result, 'as_dict'):
+            result = result.as_dict()
+
+        if not isinstance(result, dict):
+            result = {'data' : result}
+
+        if 'result' not in result:
+            result['result'] = 1
+
 
         self.write(result)
         self.finish()
@@ -51,13 +59,15 @@ class CollectionBaseHandler(BaseHandler):
     def create_mappings(cls, prefix):
         return [
             ('/{0}/?'.format(prefix), cls),
-            ('/{0}/(?P<id>.+)/?'.format(prefix), cls)
+            ('/{0}/(?P<id>[^/]+)/?'.format(prefix), cls)
         ]
 
     collection = None
 
     def handle_request(self, id=None):
         if id is None:
-            raise Exception("id should not be None")
+            offset = self.get_argument('offset', 0)
+            limit = self.get_argument('limit', 10)
+            return self.collection.find(skip=int(offset), limit=int(limit))
 
         return self.collection.find_by_id(id)
