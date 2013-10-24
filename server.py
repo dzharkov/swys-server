@@ -3,16 +3,15 @@
 import tornado.web
 import tornado.ioloop
 
+from collection.request_handler import ImageCollectionRequestHandler
 
-class BaseHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.finish({'result': 1})
 
 import conf
 
-application = tornado.web.Application([
-    (r"/", BaseHandler)
-], debug=conf.DEBUG)
+application = tornado.web.Application(
+    ImageCollectionRequestHandler.create_mappings('image') + [],
+    debug=conf.DEBUG
+)
 
 application.listen(conf.PORT)
 tornado.ioloop.IOLoop.instance().start()
