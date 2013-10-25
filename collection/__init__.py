@@ -11,11 +11,12 @@ class Image(object):
 
         return cls(**data)
 
-    def __init__(self, id=None, title=None, description_url=None, image_url=None):
+    def __init__(self, id=None, title=None, description_url=None, image_url=None, source='wiki'):
         self.id = id
         self.title = title
         self.description_url = description_url
         self.image_url = image_url
+        self.source = source
 
     def as_dict(self):
         return {
@@ -32,6 +33,19 @@ class ImageCollection(object):
 
     def find(self, *args, **kwargs):
         return map(Image.create_from_dict, self._collection.find(*args, **kwargs))
+
+    def remove(self, *args, **kwargs):
+        return self._collection.remove(*args, **kwargs)
+
+    def insert(self, obj):
+        if not isinstance(obj, dict):
+            obj = obj.as_dict()
+
+        if 'id' in obj:
+            del obj['id']
+
+        self._collection.insert(obj)
+        return self
 
     def find_by_id(self, id):
         result = Image.create_from_dict(self._collection.find_one(ObjectId(id)))
