@@ -12,12 +12,15 @@ class Image(object):
         return cls(**data)
 
     def __init__(self, id=None, title=None, description_url=None, image_url=None, source='wiki'):
-        self.id = id
+        self.id = str(id)
         self.title = title
         self.description_url = description_url
         self.image_url = image_url
         self.source = source
 
+    def __str__(self):
+        return str(self.as_dict())
+    
     def as_dict(self):
         return {
             'id': str(self.id),
