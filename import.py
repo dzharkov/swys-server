@@ -28,11 +28,25 @@ def kooaba_upload(count):
         logger.info("Start uploading " + str(image))
         upload_image(image)
 
+
+def kooaba_test(file):
+    from collection import image_collection
+    import urllib.request
+    from kooaba import recognize_image
+
+    logger = logging.getLogger(__name__)
+
+    logger.info("Kooaba test: " + str(file))
+
+    for img in recognize_image(file):
+        print(str(img))
+
 if __name__ == '__main__':
 
     handlers = {
         'wiki': wiki_import,
-        'kooaba_upload': kooaba_upload
+        'kooaba_upload': kooaba_upload,
+        'kooaba_test': kooaba_test
     }
 
     log_levels_map = {'info': logging.INFO, 'error': logging.ERROR}
@@ -46,6 +60,9 @@ if __name__ == '__main__':
 
     kooaba_parser = subparsers.add_parser('kooaba_upload')
     kooaba_parser.add_argument('--count', type=int, default=10)
+
+    kooaba_test_parser = subparsers.add_parser('kooaba_test')
+    kooaba_test_parser.add_argument('file')
 
     if len(sys.argv) < 2:
         parser.print_help()

@@ -2,10 +2,12 @@ import urllib.request
 import conf
 import logging
 from .api import BasicAPIClient
+from collection import image_collection
 
 logger = logging.getLogger(__name__)
 
 data_api_client = BasicAPIClient(conf.KOOABA_DATA_KEY_SECRET_TOKEN)
+query_api_client = BasicAPIClient(conf.KOOABA_QUERY_SECRET_TOKEN, conf.KOOABA_QUERY_KEY_ID)
 
 
 def upload_image(image):
@@ -22,3 +24,15 @@ def upload_image(image):
     except:
         logger.exception('Upload failed')
         raise
+
+
+def recognize_image(file):
+    logger.info("Recognition of " + file)
+
+    try:
+        result = query_api_client.query(file, 'KA')
+    except:
+        logger.info("Recognition query has failed")
+        raise
+
+    return map(lambda x: image_collection.find_by_id(x['reference_id']), result['results'])

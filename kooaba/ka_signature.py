@@ -45,6 +45,8 @@ if sys.hexversion > 0x03000000:
         """ Convert data to a hashable type. """
         if isinstance(data, bytes):
             return data
+        elif isinstance(data, bytearray):
+            return bytes(data)
         else:
             return str(data).encode()
 

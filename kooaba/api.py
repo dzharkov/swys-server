@@ -45,14 +45,14 @@ class BasicAPIClient:
         data = {"title":title, "reference_id":refid, "metadata":metadata}
 
         (response, body) = self._send_request('POST', url, json.dumps(data), 'application/json')
-        return json.loads(body.decode('utf-8'))
+        return json.loads(body)
 
 
     def attach_image(self, bucket_id, item_id, content_type, data):
         url = UPLOAD_ENDPOINT+'api/v4/items/'+item_id+'/images'
 
         (response, body) = self._send_request('POST', url, bytearray(data), content_type)
-        return json.loads(body.decode('utf-8'))
+        return json.loads(body)
 
 
     def replace_metadata(self, item_id, json_string):
@@ -116,7 +116,7 @@ class BasicAPIClient:
 
             if auth_method=='KA':
                 signature = self.KA.sign(method, data, content_type, date, parsed_url.path)
-                headers = {'Authorization': 'KA %s:%s' % (self.key_id,signature),'Date': date}
+                headers = {'Authorization': 'KA %s:%s' % (self.key_id,signature.decode('utf-8')),'Date': date}
                 logger.info("signature: %s", headers['Authorization'])
             else: # Token
                 headers = {'Authorization': 'Token %s' % (self.secret_token),'Date': date}
@@ -138,7 +138,7 @@ class BasicAPIClient:
             logger.info("< %d %s", response.status, response.reason)
             logger.info("< %s", body)
 
-            return (response, body)
+            return response, body.decode('utf-8')
         finally:
             http.close()
 
@@ -151,7 +151,7 @@ class BasicAPIClient:
         """
 
         BOUNDARY = '----------ThIs_Is_tHe_bouNdaRY_$'
-        CRLF = '\r\n'
+        CRLF = b'\r\n'
         L = []
         for (key, value) in fields:
             L.append('--' + BOUNDARY)
@@ -166,7 +166,7 @@ class BasicAPIClient:
             L.append(value)
         L.append('--' + BOUNDARY + '--')
         L.append('')
-        body = CRLF.join(L)
+        body = CRLF.join(map(lambda x: x.encode('utf-8') if not isinstance(x, bytes) else x, L))
         content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
         return content_type, body
 
