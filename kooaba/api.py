@@ -17,6 +17,7 @@ QUERY_ENDPOINT = 'https://query-api.kooaba.com/v4/query'
 
 logger = logging.getLogger(__name__)
 
+
 class BasicAPIClient:
     """ Client for kooaba  API V4. """
 
@@ -26,64 +27,70 @@ class BasicAPIClient:
         self.secret_token = secret_token
 
 
-    #### QUERY API
+    def _query_request_args(self, data, auth_method='Token'):
+        content_type, body = self.encode_multipart_formdata([], [('image', data)])
 
-    def query(self,filename, auth_method='Token'):
+        return 'POST', QUERY_ENDPOINT, bytearray(body), content_type, auth_method
+
+    def query(self, filename, auth_method='Token'):
         data, content_type = self.data_from_file(filename)
-        content_type, body = self.encode_multipart_formdata([],[('image', filename, data)])
+        return self._send_request(*self._query_request_args(data, auth_method))
 
-        (response, body) = self._send_request('POST', QUERY_ENDPOINT, bytearray(body), content_type, auth_method)
-        return json.loads(body)
-
-
-    #### UPLOAD API (subset of available methods)
-
-    def create_item(self, bucket_id, title, refid, json_string):
+    def _create_item_request_args(self, bucket_id, title, refid, json_string):
         url = UPLOAD_ENDPOINT+'api/v4/buckets/'+bucket_id+'/items'
 
         metadata = json.loads(json_string)
         data = {"title":title, "reference_id":refid, "metadata":metadata}
 
-        (response, body) = self._send_request('POST', url, json.dumps(data), 'application/json')
-        return json.loads(body)
+        return 'POST', url, json.dumps(data), 'application/json'
 
+    def create_item(self, bucket_id, title, refid, json_string):
+        return self._send_request(*self._create_item_request_args(bucket_id, title, refid, json_string))
 
-    def attach_image(self, bucket_id, item_id, content_type, data):
+    def _attach_image_request_args(self, bucket_id, item_id, content_type, data):
         url = UPLOAD_ENDPOINT+'api/v4/items/'+item_id+'/images'
 
-        (response, body) = self._send_request('POST', url, bytearray(data), content_type)
-        return json.loads(body)
+        return 'POST', url, bytearray(data), content_type
 
+    def attach_image(self, bucket_id, item_id, content_type, data):
+        return self._send_request(*self._attach_image_request_args(bucket_id, item_id, content_type, data))
 
-    def replace_metadata(self, item_id, json_string):
+    def _replace_metadata_request_args(self, item_id, json_string):
         url = UPLOAD_ENDPOINT+'api/v4/items/'+item_id
         metadata = json.loads(json_string)
         data = {"metadata": metadata}
-        (response, body) = self._send_request('PUT', url, json.dumps(data), 'application/json')
-        return json.loads(body)
 
+        return 'PUT', url, json.dumps(data), 'application/json'
 
-    ## HELPER METHODS
+    def replace_metadata(self, item_id, json_string):
+        return self._send_request(*self._replace_metadata_request_args(item_id, json_string))
 
     def data_from_file(self,filename):
         content_type, _encoding = mimetypes.guess_type(filename)
         with open(filename, 'rb') as f:
             return f.read() , content_type
 
+    def _prepare_headers(self, method, api_path, data=None, content_type=None, auth_method='Token'):
+        parsed_url = urlparse(api_path)
+
+        date = email.utils.formatdate(None, localtime=False, usegmt=True)
+
+        if auth_method=='KA':
+            signature = self.KA.sign(method, data, content_type, date, parsed_url.path)
+            headers = {'Authorization': 'KA %s:%s' % (self.key_id,signature.decode('utf-8')), 'Date': date}
+            logger.info("signature: %s", headers['Authorization'])
+        else: # Token
+            headers = {'Authorization': 'Token %s' % self.secret_token,'Date': date}
+
+        if content_type is not None:
+            headers['Content-Type'] = content_type
+
+        if data is not None:
+            headers['Content-Length'] = str(len(data))
+
+        return headers
+
     def _send_request(self, method, api_path, data=None, content_type=None, auth_method='Token'):
-        """ Send (POST/PUT/GET/DELETE according to the method) data to an API
-        node specified by api_path.
-
-        Returns tuple (response, body) as returned by the API call. The
-        response is a HttpResponse object describint HTTP headers and status
-        line.
-
-        Raises exception on error:
-            - IOError: Failure performing HTTP call
-            - RuntimeError: Unsupported transport scheme.
-            - RuntimeError: API call returned an error.
-        """
-
         if data is None:
             logger.info("> %s %s", method, api_path)
         elif len(data) < 4096:
@@ -91,10 +98,13 @@ class BasicAPIClient:
         else:
             logger.info("> %s %s: %sB", method, api_path, len(data))
 
-        parsed_url = urlparse(api_path)
+        return self._send_http_request(method, api_path, data, self._prepare_headers(method, api_path, data, content_type, auth_method))
 
-        if ((parsed_url.scheme != 'https') and (parsed_url.scheme != 'http')):
-            raise RuntimeError("URL scheme '%s' not supported" % parsed_url.scheme)
+    def _process_http_response(self, body):
+        return json.loads(body.decode('utf-8'))
+
+    def _send_http_request(self, method, url, data, headers):
+        parsed_url = urlparse(url)
 
         port = parsed_url.port
         if port is None:
@@ -112,33 +122,14 @@ class BasicAPIClient:
             raise RuntimeError("URL scheme '%s' not supported" % parsed_url.scheme)
 
         try:
-            date = email.utils.formatdate(None, localtime=False, usegmt=True)
-
-            if auth_method=='KA':
-                signature = self.KA.sign(method, data, content_type, date, parsed_url.path)
-                headers = {'Authorization': 'KA %s:%s' % (self.key_id,signature.decode('utf-8')),'Date': date}
-                logger.info("signature: %s", headers['Authorization'])
-            else: # Token
-                headers = {'Authorization': 'Token %s' % (self.secret_token),'Date': date}
-
-            if content_type is not None:
-                headers['Content-Type'] = content_type
-
-            if data is not None:
-                headers['Content-Length'] = str(len(data))
-
-            try:
-                http.request(method, parsed_url.path, body=data,  headers=headers)
-            except Exception as e:
-                raise  #IOError("Error during request: %s: %s" % (type(e), e))
-
+            http.request(method, parsed_url.path, body=data,  headers=headers)
             response = http.getresponse()
             # we have to read the response before the http connection is closed
             body = response.read()
             logger.info("< %d %s", response.status, response.reason)
             logger.info("< %s", body)
 
-            return response, body.decode('utf-8')
+            return self._process_http_response(body)
         finally:
             http.close()
 
@@ -158,10 +149,10 @@ class BasicAPIClient:
             L.append('Content-Disposition: form-data; name="%s"' % key)
             L.append('')
             L.append(value)
-        for (key, filename, value) in files:
+        for (key, value) in files:
             L.append('--' + BOUNDARY)
-            L.append('Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename))
-            L.append('Content-Type: %s' % self.get_content_type(filename))
+            L.append('Content-Disposition: form-data; name="%s";' % key)
+            L.append('Content-Type: %s' % 'application/octet-stream')
             L.append('')
             L.append(value)
         L.append('--' + BOUNDARY + '--')
@@ -169,6 +160,3 @@ class BasicAPIClient:
         body = CRLF.join(map(lambda x: x.encode('utf-8') if not isinstance(x, bytes) else x, L))
         content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
         return content_type, body
-
-    def get_content_type(self, filename):
-        return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
