@@ -15,7 +15,7 @@ def wiki_import():
 
 def kooaba_upload(count):
     from collection import image_collection
-    from kooaba import upload_image
+    from kooaba.bridge import kooaba_bridge
     from pymongo.helpers import shuffled
 
     logger = logging.getLogger(__name__)
@@ -26,19 +26,17 @@ def kooaba_upload(count):
     for i in range(count):
         image = images[i]
         logger.info("Start uploading " + str(image))
-        upload_image(image)
+        kooaba_bridge.upload_image(image)
 
 
 def kooaba_test(file):
-    from collection import image_collection
-    import urllib.request
-    from kooaba import recognize_image
+    from kooaba.bridge import kooaba_bridge
 
     logger = logging.getLogger(__name__)
 
     logger.info("Kooaba test: " + str(file))
 
-    for img in recognize_image(file):
+    for img in kooaba_bridge.recognize_image(file):
         print(str(img))
 
 if __name__ == '__main__':
