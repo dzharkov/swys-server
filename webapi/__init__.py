@@ -1,4 +1,6 @@
 import tornado.web
+import tornado.gen
+import tornado.concurrent
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -21,35 +23,43 @@ class BaseHandler(tornado.web.RequestHandler):
             result = result.as_dict()
 
         if not isinstance(result, dict):
-            result = {'data' : result}
+            result = {'data': result}
 
         if 'result' not in result:
             result['result'] = 1
-
 
         self.write(result)
         self.finish()
 
     def handle_request(self, *args, **kwargs):
-        raise NotImplemented
+        raise NotImplemented()
 
+    @tornado.gen.coroutine
     def handle_request_async(self, *args, **kwargs):
         try:
             result = self.handle_request(*args, **kwargs)
+
+            if isinstance(result, tornado.concurrent.Future):
+                result = yield result
+
         except Exception as exc:
             self.on_complete(None, exc=exc)
         else:
             self.on_complete(result)
 
+    @tornado.web.asynchronous
     def post(self, *args, **kwargs):
         return self.handle_request_async(*args, **kwargs)
 
+    @tornado.web.asynchronous
     def put(self, *args, **kwargs):
         return self.handle_request_async(*args, **kwargs)
 
+    @tornado.web.asynchronous
     def delete(self, *args, **kwargs):
         return self.handle_request_async(*args, **kwargs)
 
+    @tornado.web.asynchronous
     def get(self, *args, **kwargs):
         return self.handle_request_async(*args, **kwargs)
 
