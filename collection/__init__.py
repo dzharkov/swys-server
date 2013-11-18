@@ -41,13 +41,12 @@ class ImageCollection(object):
         return self._collection.remove(*args, **kwargs)
 
     def insert(self, obj):
-        if not isinstance(obj, dict):
-            obj = obj.as_dict()
+        dict_obj = obj.as_dict()
 
-        if 'id' in obj:
-            del obj['id']
+        if 'id' in dict_obj:
+            del dict_obj['id']
 
-        self._collection.insert(obj)
+        obj.id = str(self._collection.insert(dict_obj))
         return self
 
     def find_by_id(self, id):
