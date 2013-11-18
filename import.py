@@ -39,12 +39,33 @@ def kooaba_test(file):
     for img in kooaba_bridge.recognize_image(file):
         print(str(img))
 
+
+def add_image():
+    from collection import Image, image_collection
+
+    image = Image.create_from_dict({
+        'title': input("Title: "),
+        'image_url': input("Image URL: "),
+        'description_url': input("Description URL: "),
+        'source': 'manual',
+    })
+
+    image_collection.insert(image)
+
+    need_import = input("Import image to kooaba?[Y/n]").lower() == 'y'
+
+    if need_import:
+        from kooaba.bridge import kooaba_bridge
+        kooaba_bridge.upload_image(image)
+
+
 if __name__ == '__main__':
 
     handlers = {
         'wiki': wiki_import,
+        'add_image': add_image,
         'kooaba_upload': kooaba_upload,
-        'kooaba_test': kooaba_test
+        'kooaba_test': kooaba_test,
     }
 
     log_levels_map = {'info': logging.INFO, 'error': logging.ERROR}
@@ -61,6 +82,8 @@ if __name__ == '__main__':
 
     kooaba_test_parser = subparsers.add_parser('kooaba_test')
     kooaba_test_parser.add_argument('file')
+
+    add_image_parser = subparsers.add_parser('add_image')
 
     if len(sys.argv) < 2:
         parser.print_help()
