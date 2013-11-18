@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import logging
 import tornado.web
 import tornado.ioloop
 
@@ -8,6 +9,9 @@ from search.request_handler import SearchRequestHandler, RandomSearchRequestHand
 
 
 import conf
+
+if conf.DEBUG:
+    logging.basicConfig(level=logging.DEBUG)
 
 application = tornado.web.Application(
     ImageCollectionRequestHandler.create_mappings('image') + [
