@@ -59,6 +59,13 @@ def add_image():
         kooaba_bridge.upload_image(image)
 
 
+def update_meta():
+    from collection import image_collection
+
+    for image in image_collection.find():
+        image_collection.save(image)
+
+
 if __name__ == '__main__':
 
     handlers = {
@@ -66,6 +73,7 @@ if __name__ == '__main__':
         'add_image': add_image,
         'kooaba_upload': kooaba_upload,
         'kooaba_test': kooaba_test,
+        'update_meta': update_meta,
     }
 
     log_levels_map = {'info': logging.INFO, 'error': logging.ERROR}
@@ -84,6 +92,7 @@ if __name__ == '__main__':
     kooaba_test_parser.add_argument('file')
 
     add_image_parser = subparsers.add_parser('add_image')
+    update_meta_parser = subparsers.add_parser('update_meta')
 
     if len(sys.argv) < 2:
         parser.print_help()

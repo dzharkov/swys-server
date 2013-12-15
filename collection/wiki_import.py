@@ -33,7 +33,12 @@ def import_images_from_page(title):
         print("could not load page images: " + str(e))
         return
 
+    processed = set()
+
     for item in urls_and_desc:
+        if item[0] in processed:
+            continue
+
         match = re.search(r'File:(.*?)(?:[0-9]{3})?\.(?:jpg|jpeg)$', unquote(item[1]))
 
         if match is None:
@@ -49,6 +54,7 @@ def import_images_from_page(title):
         })
 
         image_collection.insert(image)
+        processed.add(item[0])
 
 
 def import_images():

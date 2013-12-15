@@ -1,5 +1,7 @@
-from collection.mongo import db
 from bson.objectid import ObjectId
+
+from collection.mongo import db
+from collection.meta import generate_meta_information
 
 
 class Image(object):
@@ -11,12 +13,16 @@ class Image(object):
 
         return cls(**data)
 
-    def __init__(self, id=None, title=None, description_url=None, image_url=None, source='wiki'):
+    def __init__(self, id=None, title=None,
+                 description_url=None, image_url=None, source='wiki',
+                 hash_value=None, hash_comparable_value=None):
         self.id = str(id)
         self.title = title
         self.description_url = description_url
         self.image_url = image_url
         self.source = source
+        self.hash_value = hash_value
+        self.hash_comparable_value = hash_comparable_value
 
     def __str__(self):
         return str(self.as_dict())
@@ -28,6 +34,13 @@ class Image(object):
             'description_url': self.description_url,
             'image_url': self.image_url,
         }
+
+    def full_as_dict(self):
+        result = self.as_dict()
+        result['hash_value'] = self.hash_value
+        result['hash_comparable_value'] = self.hash_comparable_value
+
+        return result
 
 
 class ImageCollection(object):
@@ -41,7 +54,9 @@ class ImageCollection(object):
         return self._collection.remove(*args, **kwargs)
 
     def insert(self, obj):
-        dict_obj = obj.as_dict()
+        generate_meta_information(obj)
+
+        dict_obj = obj.full_as_dict()
 
         if 'id' in dict_obj:
             del dict_obj['id']
@@ -56,5 +71,24 @@ class ImageCollection(object):
             raise Exception("there's no image with such id " + str(id))
 
         return result
+
+    def find_by_hash_range(self, center, dispersion):
+        return self.find({
+            'hash_comparable_value': {
+                '$gte': center - dispersion,
+                '$lte': center + dispersion
+            }
+        })
+
+    def save(self, image):
+        if image.id is None:
+            return self.insert(image)
+
+        generate_meta_information(image)
+
+        dict_obj = image.full_as_dict()
+        dict_obj['id'] = ObjectId(image.id)
+
+        self._collection.save(dict_obj)
 
 image_collection = ImageCollection()
