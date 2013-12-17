@@ -1,7 +1,12 @@
+from builtins import property
+import os
 from bson.objectid import ObjectId
 
 from collection.mongo import db
 from collection.meta import generate_meta_information
+
+import conf
+
 
 
 class Image(object):
@@ -15,7 +20,8 @@ class Image(object):
 
     def __init__(self, id=None, title=None,
                  description_url=None, image_url=None, source='wiki',
-                 hash_value=None, hash_comparable_value=None):
+                 hash_value=None, hash_comparable_value=None,
+                 **kwargs):
         self.id = str(id)
         self.title = title
         self.description_url = description_url
@@ -26,13 +32,36 @@ class Image(object):
 
     def __str__(self):
         return str(self.as_dict())
-    
+
+    @property
+    def _file_extension(self):
+        return self.image_url.split(".")[-1]
+
+    @property
+    def _thumbnail_name(self):
+        return self.id + '.' + self._file_extension
+
+    @property
+    def thumbnail_path(self):
+        return os.path.join(conf.THUMBNAIL_ROOT, self._thumbnail_name)
+
+    @property
+    def thumbnail_exists(self):
+        return os.path.exists(self.thumbnail_path)
+
+    @property
+    def thumbnail_url(self):
+        if not self.thumbnail_exists:
+            return self.image_url
+        return conf.STATIC_URL + 'thumbnails/' + self._thumbnail_name
+
     def as_dict(self):
         return {
             'id': str(self.id),
             'title': self.title,
             'description_url': self.description_url,
             'image_url': self.image_url,
+            'thumbnail': self.thumbnail_url
         }
 
     def full_as_dict(self):
@@ -80,11 +109,12 @@ class ImageCollection(object):
             }
         })
 
-    def save(self, image):
+    def save(self, image, generate_meta=True):
         if image.id is None:
             return self.insert(image)
 
-        generate_meta_information(image)
+        if generate_meta:
+            generate_meta_information(image)
 
         dict_obj = image.full_as_dict()
         dict_obj['id'] = ObjectId(image.id)

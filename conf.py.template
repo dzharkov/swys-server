@@ -14,3 +14,9 @@ HASH_RANGE_VALUE = 1024
 HASH_DISTANCE_THRESHOLD = 0.2
 
 SEARCH_WORKER_ZMQ_ENDPOINT = 'tcp://127.0.0.1:10000'
+
+STATIC_ROOT = os.path.join( os.path.dirname(__file__), 'static').replace('\\','/')
+STATIC_URL = 'http://192.168.1.37/'
+THUMBNAIL_HEIGHT = 200
+
+THUMBNAIL_ROOT = os.path.join(STATIC_ROOT, 'thumbnails')

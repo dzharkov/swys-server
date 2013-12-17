@@ -5,6 +5,7 @@ import logging
 
 
 from collection.wiki_import import import_images
+from collection import Image, image_collection
 
 def wiki_import():
     res = input("Do you really want to import images from wiki?[Y/n]").lower()
@@ -14,7 +15,6 @@ def wiki_import():
         print("Aborted")
 
 def kooaba_upload(count):
-    from collection import image_collection
     from kooaba.bridge import kooaba_bridge
     from pymongo.helpers import shuffled
 
@@ -41,7 +41,6 @@ def kooaba_test(file):
 
 
 def add_image():
-    from collection import Image, image_collection
 
     image = Image.create_from_dict({
         'title': input("Title: "),
@@ -60,11 +59,33 @@ def add_image():
 
 
 def update_meta():
-    from collection import image_collection
-
     for image in image_collection.find():
         image_collection.save(image)
 
+def create_thumbnails():
+    from collection.meta import create_thumbnail
+    import threading
+    import queue
+
+    logger = logging.getLogger(__name__)
+
+    images_queue = queue.Queue()
+
+    def consume():
+        while True:
+            image = images_queue.get()
+            create_thumbnail(image)
+            logger.info('thread: '+ str(threading.current_thread().ident))
+            logger.info("Creating thumbnail for: " + image.title)
+            images_queue.task_done()
+
+    for i in range(10):
+        threading.Thread(target=consume, daemon=True).start()
+
+    for image in image_collection.find():
+        images_queue.put(image)
+
+    images_queue.join()
 
 if __name__ == '__main__':
 
@@ -74,6 +95,7 @@ if __name__ == '__main__':
         'kooaba_upload': kooaba_upload,
         'kooaba_test': kooaba_test,
         'update_meta': update_meta,
+        'create_thumbnails': create_thumbnails,
     }
 
     log_levels_map = {'info': logging.INFO, 'error': logging.ERROR}
@@ -91,8 +113,9 @@ if __name__ == '__main__':
     kooaba_test_parser = subparsers.add_parser('kooaba_test')
     kooaba_test_parser.add_argument('file')
 
-    add_image_parser = subparsers.add_parser('add_image')
-    update_meta_parser = subparsers.add_parser('update_meta')
+    subparsers.add_parser('add_image')
+    subparsers.add_parser('update_meta')
+    subparsers.add_parser('create_thumbnails')
 
     if len(sys.argv) < 2:
         parser.print_help()

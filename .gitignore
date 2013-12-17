@@ -40,3 +40,6 @@ nosetests.xml
 
 #config
 conf.py
+
+#static
+static/
