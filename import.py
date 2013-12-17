@@ -49,7 +49,7 @@ def add_image():
         'source': 'manual',
     })
 
-    image_collection.insert(image)
+    image_collection.save(image)
 
     need_import = input("Import image to kooaba?[Y/n]").lower() == 'y'
 

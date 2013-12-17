@@ -3,7 +3,7 @@ import os
 from bson.objectid import ObjectId
 
 from collection.mongo import db
-from collection.meta import generate_meta_information
+from collection.meta import generate_meta_information, create_thumbnail
 
 import conf
 
@@ -22,7 +22,7 @@ class Image(object):
                  description_url=None, image_url=None, source='wiki',
                  hash_value=None, hash_comparable_value=None,
                  **kwargs):
-        self.id = str(id)
+        self.id = str(id) if id is not None else None
         self.title = title
         self.description_url = description_url
         self.image_url = image_url
@@ -47,6 +47,8 @@ class Image(object):
 
     @property
     def thumbnail_exists(self):
+        if self.id is None:
+            return False
         return os.path.exists(self.thumbnail_path)
 
     @property
@@ -79,12 +81,10 @@ class ImageCollection(object):
     def find(self, *args, **kwargs):
         return map(Image.create_from_dict, self._collection.find(*args, **kwargs))
 
-    def remove(self, *args, **kwargs):
-        return self._collection.remove(*args, **kwargs)
+    def remove(self, image):
+        return self._collection.remove(ObjectId(image.id))
 
     def insert(self, obj):
-        generate_meta_information(obj)
-
         dict_obj = obj.full_as_dict()
 
         if 'id' in dict_obj:
@@ -110,11 +110,15 @@ class ImageCollection(object):
         })
 
     def save(self, image, generate_meta=True):
-        if image.id is None:
-            return self.insert(image)
-
         if generate_meta:
             generate_meta_information(image)
+        if image.id is None:
+            self.insert(image)
+            create_thumbnail(image)
+            return
+
+        if not image.thumbnail_exists:
+            create_thumbnail(image)
 
         dict_obj = image.full_as_dict()
         dict_obj['id'] = ObjectId(image.id)
